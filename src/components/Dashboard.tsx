@@ -1,13 +1,18 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Plus } from "lucide-react";
 import { DebtFilters } from "@/components/DebtFilters";
 import { DebtList } from "@/components/DebtList";
+import { DebtModal } from "@/components/DebtModal";
 import { LogoutButton } from "@/components/LogoutButton";
 import { SummaryCards } from "@/components/SummaryCards";
 import { useDebts } from "@/hooks/useDebts";
+import type {
+  CreateDebtInput,
+  UpdateDebtInput,
+} from "@/lib/validation/debt";
 import type {
   Debt,
   DebtFilters as DebtFiltersState,
@@ -37,6 +42,11 @@ export function Dashboard({ email }: { email: string | null }) {
   }));
   // Disambungkan ke modal edit di T10.
   const [editingDebt, setEditingDebt] = useState<Debt | null>(null);
+  const [modalOpen, setModalOpen] = useState(false);
+  // Key berubah tiap dibuka -> DebtModal remount -> form selalu segar.
+  const [modalKey, setModalKey] = useState(0);
+  const [toast, setToast] = useState<string | null>(null);
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const {
     data,
@@ -44,9 +54,44 @@ export function Dashboard({ email }: { email: string | null }) {
     status,
     errorMessage,
     refresh,
+    createDebt,
+    updateDebt,
     settleDebt,
     deleteDebt,
   } = useDebts(filters);
+
+  function showToast(message: string) {
+    setToast(message);
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    toastTimer.current = setTimeout(() => setToast(null), 3000);
+  }
+
+  useEffect(
+    () => () => {
+      if (toastTimer.current) clearTimeout(toastTimer.current);
+    },
+    [],
+  );
+
+  async function handleCreate(input: CreateDebtInput) {
+    const result = await createDebt(input);
+    if (result.ok) {
+      setModalOpen(false);
+      setEditingDebt(null);
+      showToast(result.message);
+    }
+    return result;
+  }
+
+  async function handleUpdate(id: string, input: UpdateDebtInput) {
+    const result = await updateDebt(id, input);
+    if (result.ok) {
+      setModalOpen(false);
+      setEditingDebt(null);
+      showToast(result.message);
+    }
+    return result;
+  }
 
   useEffect(() => {
     const params = new URLSearchParams();
@@ -71,11 +116,13 @@ export function Dashboard({ email }: { email: string | null }) {
           )}
         </div>
         <div className="flex items-center gap-2">
-          {/* TODO(T10): aktifkan saat modal tambah/edit selesai. */}
           <button
             type="button"
-            disabled
-            title="Segera hadir"
+            onClick={() => {
+              setEditingDebt(null);
+              setModalKey((key) => key + 1);
+              setModalOpen(true);
+            }}
             className="flex h-11 flex-1 items-center justify-center gap-1.5 rounded-lg bg-pulpen px-4 font-semibold text-white disabled:opacity-40 sm:flex-none"
           >
             <Plus aria-hidden="true" className="h-5 w-5" />
@@ -100,13 +147,33 @@ export function Dashboard({ email }: { email: string | null }) {
         }
         onRetry={refresh}
         onSettle={(id, settled) => settleDebt(id, settled)}
-        onEdit={(debt) => setEditingDebt(debt)}
+        onEdit={(debt) => {
+          setEditingDebt(debt);
+          setModalKey((key) => key + 1);
+          setModalOpen(true);
+        }}
         onDelete={(id) => deleteDebt(id)}
       />
 
-      {editingDebt && (
-        <p className="text-sm text-tinta/60">
-          Mode ubah untuk {editingDebt.counterpart_name} nyusul di T10 ya.
+      <DebtModal
+        key={modalKey}
+        open={modalOpen}
+        mode={editingDebt ? "edit" : "create"}
+        initial={editingDebt}
+        onClose={() => {
+          setModalOpen(false);
+          setEditingDebt(null);
+        }}
+        onCreate={handleCreate}
+        onUpdate={handleUpdate}
+      />
+
+      {toast && (
+        <p
+          role="status"
+          className="fixed bottom-6 left-1/2 -translate-x-1/2 rounded-full bg-tinta px-5 py-3 text-sm font-semibold text-white shadow-lg"
+        >
+          {toast}
         </p>
       )}
     </div>
