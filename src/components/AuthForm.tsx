@@ -16,8 +16,6 @@ function logAuthErrorDev(error: AuthError | Error) {
   }
 }
 
-type AuthMode = "login" | "signup";
-
 export function AuthForm({ mode }: { mode: AuthMode }) {
   const router = useRouter();
   const [email, setEmail] = useState("");
