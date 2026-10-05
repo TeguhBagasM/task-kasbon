@@ -33,6 +33,18 @@ export async function proxy(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
+  // Redirect WAJIB membawa cookie dari supabaseResponse: getUser() di atas
+  // bisa me-refresh session (setAll), dan cookie itu hidup di
+  // supabaseResponse. Redirect fresh tanpa copy = refresh hilang,
+  // user bisa terlempar ke /login padahal session baru saja diperbarui.
+  const redirectWithCookies = (url: URL) => {
+    const redirect = NextResponse.redirect(url);
+    supabaseResponse.cookies.getAll().forEach((cookie) => {
+      redirect.cookies.set(cookie.name, cookie.value, cookie);
+    });
+    return redirect;
+  };
+
   const pathname = request.nextUrl.pathname;
   const isAuthPage = pathname === "/login" || pathname === "/signup";
 
@@ -41,14 +53,14 @@ export async function proxy(request: NextRequest) {
   if (!user && !isAuthPage) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
-    return NextResponse.redirect(url);
+    return redirectWithCookies(url);
   }
 
   // Sudah login tapi buka /login atau /signup -> ke /.
   if (user && isAuthPage) {
     const url = request.nextUrl.clone();
     url.pathname = "/";
-    return NextResponse.redirect(url);
+    return redirectWithCookies(url);
   }
 
   return supabaseResponse;
