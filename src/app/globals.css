@@ -1,26 +1,40 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+/* Palet Kasbon (buku ledger warung). Kuning HANYA untuk elemen non-teks
+   (garis, titik, border) — kontrasnya terlalu rendah untuk teks. */
+@theme {
+  --color-kertas: #faf7f2;
+  --color-tinta: #1a1c1e;
+  --color-daun: #15803d;
+  --color-bata: #dc2626;
+  --color-kuning: #f59e0b;
+  --color-pulpen: #1d4ed8;
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --font-sans: var(--font-body);
+  --font-angka: var(--font-angka);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-kertas);
+  color: var(--color-tinta);
+  font-family: var(--font-sans);
+}
+
+@utility font-angka {
+  font-family: var(--font-angka);
+  font-variant-numeric: tabular-nums;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-pulpen);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }
