@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createDebtSchema } from "@/lib/validation/debt";
+import { escapeLikePattern } from "@/lib/utils/search";
 
 const UNAUTHENTICATED = "Sesi kamu sudah berakhir. Silakan login kembali ya.";
 const SERVER_ERROR = "Ada yang salah di server nih, coba lagi ya.";
@@ -14,12 +15,6 @@ interface DebtRow {
   due_date: string | null;
   settled_at: string | null;
   created_at: string;
-}
-
-// Escape karakter spesial LIKE (Postgres: backslash adalah escape default).
-// Tanpa ini, % dan _ dari input user jadi wildcard + vektor probing data.
-function escapeLikePattern(value: string): string {
-  return value.replace(/[\\%_]/g, (char) => `\\${char}`);
 }
 
 function unauthorized() {

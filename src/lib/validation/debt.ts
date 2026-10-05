@@ -44,3 +44,22 @@ export const createDebtSchema = z.object({
 });
 
 export type CreateDebtInput = z.infer<typeof createDebtSchema>;
+
+// Schema PATCH: semua field opsional, TAPI body kosong ditolak, dan
+// kunci asing (.strict) seperti user_id / settled_at ditolak — server
+// tidak pernah percaya field kepemilikan dari client.
+export const updateDebtSchema = z
+  .object({
+    type: debtTypeSchema.optional(),
+    counterpart_name: counterpartNameSchema.optional(),
+    amount: amountSchema.optional(),
+    note: noteSchema,
+    due_date: dueDateSchema,
+    is_settled: z.boolean().optional(),
+  })
+  .strict()
+  .refine((body) => Object.keys(body).length > 0, {
+    message: "Tidak ada perubahan yang dikirim nih.",
+  });
+
+export type UpdateDebtInput = z.infer<typeof updateDebtSchema>;
