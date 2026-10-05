@@ -1,0 +1,566 @@
+# Kasbon API — REST Client (ekstensi Huachao Mao)
+#
+# CARA PAKAI:
+# 1. Copy requests/.env.rest.example menjadi requests/.env, isi nilainya.
+# 2. Jalankan `npm run dev`, pastikan BASE_URL di requests/.env cocok.
+# 3. Kirim request berurutan dari atas (ada yang merantai via request variable).
+#
+# COOKIE (auth app ini berbasis cookie Supabase SSR, BUKAN Bearer):
+# - Browser yang sedang login -> DevTools -> Application -> Cookies ->
+#   copy SEMUA cookie bernama sb-*-auth-token, gabung dengan "; ", paste ke
+#   COOKIE_A / COOKIE_B di requests/.env.
+# - Cookie kedaluwarsa kira-kira per jam. Jika tiba-tiba semua 401,
+#   login ulang di browser lalu copy cookie yang baru.
+#
+# REQUEST VARIABLE: {{nama.response.body.$.path}} hanya terisi SETELAH
+# request bernama itu dikirim. Jangan lompat urutan di bagian berantai.
+
+@baseUrl = {{$dotenv BASE_URL}}
+
+### 1a. Tanpa cookie: GET harus 401
+# Harapan: 401 + {"success":false,"error":"Sesi kamu sudah berakhir. Silakan login kembali ya."}
+# @name getNoAuth
+GET {{baseUrl}}/api/debts
+
+### 1b. Tanpa cookie: POST valid tetap 401 (auth dicek SEBELUM validasi)
+# Harapan: 401 + pesan BI yang sama
+# @name postNoAuth
+POST {{baseUrl}}/api/debts HTTP/1.1
+Content-Type: application/json
+
+{
+  "type": "owed_to_me",
+  "counterpart_name": "Budi",
+  "amount": 150000
+}
+
+### 1c. Tanpa cookie: PATCH harus 401
+# Harapan: 401 + pesan BI yang sama
+# @name patchNoAuth
+PATCH {{baseUrl}}/api/debts/11111111-1111-1111-1111-111111111111 HTTP/1.1
+Content-Type: application/json
+
+{
+  "is_settled": true
+}
+
+### 1d. Tanpa cookie: DELETE harus 401
+# Harapan: 401 + pesan BI yang sama
+# @name deleteNoAuth
+DELETE {{baseUrl}}/api/debts/11111111-1111-1111-1111-111111111111 HTTP/1.1
+
+### 2a. GET tanpa filter (cookie A)
+# Harapan: 200 + {success, data[], summary{owed_to_me,i_owe,net}}.
+# Catat summary-nya, bandingkan dengan request 2b-2h: HARUS SAMA (independen filter).
+# @name getAll
+GET {{baseUrl}}/api/debts HTTP/1.1
+Cookie: {{$dotenv COOKIE_A}}
+
+### 2b. GET status=unsettled
+# Harapan: 200, semua data.settled_at null, summary SAMA dengan 2a
+# @name getUnsettled
+GET {{baseUrl}}/api/debts?status=unsettled HTTP/1.1
+Cookie: {{$dotenv COOKIE_A}}
+
+### 2c. GET status=settled
+# Harapan: 200, semua data.settled_at terisi, summary SAMA dengan 2a
+# @name getSettled
+GET {{baseUrl}}/api/debts?status=settled HTTP/1.1
+Cookie: {{$dotenv COOKIE_A}}
+
+### 2d. GET type=owed_to_me
+# Harapan: 200, semua data.type owed_to_me, summary SAMA dengan 2a
+# @name getOwedToMe
+GET {{baseUrl}}/api/debts?type=owed_to_me HTTP/1.1
+Cookie: {{$dotenv COOKIE_A}}
+
+### 2e. GET type=i_owe
+# Harapan: 200, semua data.type i_owe, summary SAMA dengan 2a
+# @name getIOwe
+GET {{baseUrl}}/api/debts?type=i_owe HTTP/1.1
+Cookie: {{$dotenv COOKIE_A}}
+
+### 2f. GET kombinasi filter + search
+# Harapan: 200, irisan ketiga filter, summary SAMA dengan 2a
+# @name getCombo
+GET {{baseUrl}}/api/debts?status=unsettled&type=owed_to_me&search=Budi HTTP/1.1
+Cookie: {{$dotenv COOKIE_A}}
+
+### 2g. GET search=Budi
+# Harapan: 200, hanya counterpart_name mengandung Budi (case-insensitive)
+# @name getSearchBudi
+GET {{baseUrl}}/api/debts?search=Budi HTTP/1.1
+Cookie: {{$dotenv COOKIE_A}}
+
+### 2h. GET search karakter % (ditulis %25) — harus literal, bukan wildcard
+# Harapan: 200, TIDAK error, % tidak melebarkan hasil
+# @name getSearchPercent
+GET {{baseUrl}}/api/debts?search=100%25 HTTP/1.1
+Cookie: {{$dotenv COOKIE_A}}
+
+### 2i. GET search karakter _ — harus literal, bukan wildcard satu-karakter
+# Harapan: 200, TIDAK error, _ tidak melebarkan hasil
+# @name getSearchUnderscore
+GET {{baseUrl}}/api/debts?search=a_b HTTP/1.1
+Cookie: {{$dotenv COOKIE_A}}
+
+### 2j. GET status=ngawur harus 400
+# Harapan: 400 + "Filter status-nya nggak dikenal nih."
+# @name getBadStatus
+GET {{baseUrl}}/api/debts?status=ngawur HTTP/1.1
+Cookie: {{$dotenv COOKIE_A}}
+
+### 2k. GET type=ngawur harus 400
+# Harapan: 400 + "Filter tipe-nya nggak dikenal nih."
+# @name getBadType
+GET {{baseUrl}}/api/debts?type=ngawur HTTP/1.1
+Cookie: {{$dotenv COOKIE_A}}
+
+### 3a. POST valid lengkap (cookie A) — SIMPAN id-nya untuk bagian 4-5
+# Harapan: 201 + {success:true, data:{...tanpa user_id}}
+# @name createDebt
+POST {{baseUrl}}/api/debts HTTP/1.1
+Content-Type: application/json
+Cookie: {{$dotenv COOKIE_A}}
+
+{
+  "type": "owed_to_me",
+  "counterpart_name": "Budi REST",
+  "amount": 150000,
+  "note": "Uang makan siang",
+  "due_date": "2026-10-10"
+}
+
+### 3b. POST valid minimal (tanpa note/due_date)
+# Harapan: 201, note null, due_date null
+# @name createMinimal
+POST {{baseUrl}}/api/debts HTTP/1.1
+Content-Type: application/json
+Cookie: {{$dotenv COOKIE_A}}
+
+{
+  "type": "i_owe",
+  "counterpart_name": "Siti REST",
+  "amount": 50000
+}
+
+### 3c. POST type salah
+# Harapan: 400 + "Tipe-nya pilih salah satu ya: saya dihutang atau saya hutang."
+# @name postBadType
+POST {{baseUrl}}/api/debts HTTP/1.1
+Content-Type: application/json
+Cookie: {{$dotenv COOKIE_A}}
+
+{
+  "type": "hutang",
+  "counterpart_name": "Budi",
+  "amount": 10000
+}
+
+### 3d. POST counterpart_name kosong
+# Harapan: 400 + "Namanya diisi dulu ya."
+# @name postEmptyName
+POST {{baseUrl}}/api/debts HTTP/1.1
+Content-Type: application/json
+Cookie: {{$dotenv COOKIE_A}}
+
+{
+  "type": "owed_to_me",
+  "counterpart_name": "",
+  "amount": 10000
+}
+
+### 3e. POST counterpart_name hanya spasi (di-trim jadi kosong)
+# Harapan: 400 + "Namanya diisi dulu ya."
+# @name postSpacesName
+POST {{baseUrl}}/api/debts HTTP/1.1
+Content-Type: application/json
+Cookie: {{$dotenv COOKIE_A}}
+
+{
+  "type": "owed_to_me",
+  "counterpart_name": "   ",
+  "amount": 10000
+}
+
+### 3f. POST amount 0
+# Harapan: 400 + "Jumlahnya harus lebih dari 0 ya."
+# @name postZeroAmount
+POST {{baseUrl}}/api/debts HTTP/1.1
+Content-Type: application/json
+Cookie: {{$dotenv COOKIE_A}}
+
+{
+  "type": "owed_to_me",
+  "counterpart_name": "Budi",
+  "amount": 0
+}
+
+### 3g. POST amount negatif
+# Harapan: 400 + "Jumlahnya harus lebih dari 0 ya."
+# @name postNegativeAmount
+POST {{baseUrl}}/api/debts HTTP/1.1
+Content-Type: application/json
+Cookie: {{$dotenv COOKIE_A}}
+
+{
+  "type": "owed_to_me",
+  "counterpart_name": "Budi",
+  "amount": -5000
+}
+
+### 3h. POST amount desimal 1500.5
+# Harapan: 400 + "Jumlahnya harus bilangan bulat ya."
+# @name postFloatAmount
+POST {{baseUrl}}/api/debts HTTP/1.1
+Content-Type: application/json
+Cookie: {{$dotenv COOKIE_A}}
+
+{
+  "type": "owed_to_me",
+  "counterpart_name": "Budi",
+  "amount": 1500.5
+}
+
+### 3i. POST amount string "abc"
+# Harapan: 400 + "Jumlahnya harus angka ya."
+# @name postStringAmount
+POST {{baseUrl}}/api/debts HTTP/1.1
+Content-Type: application/json
+Cookie: {{$dotenv COOKIE_A}}
+
+{
+  "type": "owed_to_me",
+  "counterpart_name": "Budi",
+  "amount": "abc"
+}
+
+### 3j. POST amount 9007199254740993 (2^53+1, di atas safe integer)
+# JUJUR: schema TIDAK punya batas atas — Zod meloloskan ini (int+positif).
+# JSON sendiri membulatkan ke 9007199254740992. Harapan: 201, TAPI periksa
+# amount tersimpan di DB (presisi hilang). Nilai di atas rentang BIGINT
+# Postgres (mis. 1e20) justru 500. Kasus ini mendokumentasikan batas nyata.
+# @name postHugeAmount
+POST {{baseUrl}}/api/debts HTTP/1.1
+Content-Type: application/json
+Cookie: {{$dotenv COOKIE_A}}
+
+{
+  "type": "owed_to_me",
+  "counterpart_name": "Budi Big",
+  "amount": 9007199254740993
+}
+
+### 3k. POST note tepat 200 karakter (valid)
+# Harapan: 201
+# @name postNote200
+POST {{baseUrl}}/api/debts HTTP/1.1
+Content-Type: application/json
+Cookie: {{$dotenv COOKIE_A}}
+
+{
+  "type": "owed_to_me",
+  "counterpart_name": "Budi Note",
+  "amount": 10000,
+  "note": "01234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789"
+}
+
+### 3l. POST note 201 karakter (invalid)
+# Harapan: 400 + "Catatannya maksimal 200 karakter ya."
+# @name postNote201
+POST {{baseUrl}}/api/debts HTTP/1.1
+Content-Type: application/json
+Cookie: {{$dotenv COOKIE_A}}
+
+{
+  "type": "owed_to_me",
+  "counterpart_name": "Budi Note",
+  "amount": 10000,
+  "note": "012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890"
+}
+
+### 3m. POST due_date mustahil 2026-02-30
+# Harapan: 400 + "Tanggalnya nggak valid nih, cek lagi ya."
+# @name postBadDate
+POST {{baseUrl}}/api/debts HTTP/1.1
+Content-Type: application/json
+Cookie: {{$dotenv COOKIE_A}}
+
+{
+  "type": "owed_to_me",
+  "counterpart_name": "Budi",
+  "amount": 10000,
+  "due_date": "2026-02-30"
+}
+
+### 3n. POST due_date format salah
+# Harapan: 400 + "Tanggalnya pakai format YYYY-MM-DD ya."
+# @name postBadDateFormat
+POST {{baseUrl}}/api/debts HTTP/1.1
+Content-Type: application/json
+Cookie: {{$dotenv COOKIE_A}}
+
+{
+  "type": "owed_to_me",
+  "counterpart_name": "Budi",
+  "amount": 10000,
+  "due_date": "10-10-2026"
+}
+
+### 3o. POST berisi user_id orang lain — DIABAIKAN (schema create tidak strict)
+# Schema createDebtSchema TIDAK .strict: kunci tak dikenal di-strip diam-diam.
+# Harapan: 201. YANG HARUS DIPERIKSA: baca ulang via GET / cek DB — user_id
+# entry HARUS milik user A (login), BUKAN id di body. Jika user_id body yang
+# menang, itu bug kritis.
+# @name postForeignUserId
+POST {{baseUrl}}/api/debts HTTP/1.1
+Content-Type: application/json
+Cookie: {{$dotenv COOKIE_A}}
+
+{
+  "type": "owed_to_me",
+  "counterpart_name": "Budi Asing",
+  "amount": 10000,
+  "user_id": "00000000-0000-0000-0000-000000000000"
+}
+
+### 3p. POST berisi field asing lain — DIABAIKAN juga
+# Harapan: 201, field "hacker" tidak tersimpan dan tidak error.
+# @name postForeignField
+POST {{baseUrl}}/api/debts HTTP/1.1
+Content-Type: application/json
+Cookie: {{$dotenv COOKIE_A}}
+
+{
+  "type": "owed_to_me",
+  "counterpart_name": "Budi Asing 2",
+  "amount": 10000,
+  "hacker": true
+}
+
+### 3q. POST body bukan JSON
+# Harapan: 400 + "Body-nya bukan JSON yang valid nih."
+# @name postBrokenJson
+POST {{baseUrl}}/api/debts HTTP/1.1
+Content-Type: application/json
+Cookie: {{$dotenv COOKIE_A}}
+
+{bukan json
+
+### 4a. PATCH tandai lunas (cookie A, id dari 3a)
+# Harapan: 200 + data.settled_at terisi timestamp. CATAT nilainya.
+# @name settleDebt
+PATCH {{baseUrl}}/api/debts/{{createDebt.response.body.$.data.id}} HTTP/1.1
+Content-Type: application/json
+Cookie: {{$dotenv COOKIE_A}}
+
+{
+  "is_settled": true
+}
+
+### 4b. PATCH lunas LAGI persis sama — uji idempoten
+# Harapan: 200 + data.settled_at SAMA PERSIS dengan 4a (tidak ditimpa).
+# Bandingkan manual kedua respons.
+# @name settleDebtAgain
+PATCH {{baseUrl}}/api/debts/{{createDebt.response.body.$.data.id}} HTTP/1.1
+Content-Type: application/json
+Cookie: {{$dotenv COOKIE_A}}
+
+{
+  "is_settled": true
+}
+
+### 4c. PATCH is_settled false — batal lunas
+# Harapan: 200 + data.settled_at null
+# @name unsettleDebt
+PATCH {{baseUrl}}/api/debts/{{createDebt.response.body.$.data.id}} HTTP/1.1
+Content-Type: application/json
+Cookie: {{$dotenv COOKIE_A}}
+
+{
+  "is_settled": false
+}
+
+### 4d. PATCH edit nama saja
+# Harapan: 200 + counterpart_name berubah, field lain utuh
+# @name patchName
+PATCH {{baseUrl}}/api/debts/{{createDebt.response.body.$.data.id}} HTTP/1.1
+Content-Type: application/json
+Cookie: {{$dotenv COOKIE_A}}
+
+{
+  "counterpart_name": "Budi REST Updated"
+}
+
+### 4e. PATCH edit jumlah saja
+# Harapan: 200 + amount berubah
+# @name patchAmount
+PATCH {{baseUrl}}/api/debts/{{createDebt.response.body.$.data.id}} HTTP/1.1
+Content-Type: application/json
+Cookie: {{$dotenv COOKIE_A}}
+
+{
+  "amount": 200000
+}
+
+### 4f. PATCH body kosong {} — ditolak schema
+# Harapan: 400 + "Tidak ada perubahan yang dikirim nih."
+# @name patchEmpty
+PATCH {{baseUrl}}/api/debts/{{createDebt.response.body.$.data.id}} HTTP/1.1
+Content-Type: application/json
+Cookie: {{$dotenv COOKIE_A}}
+
+{}
+
+### 4g. PATCH berisi user_id — ditolak .strict
+# Harapan: 400 + pesan Zod berbahasa Inggris soal unrecognized key
+# (teks persis mengikuti versi Zod; yang penting 400, bukan 200).
+# @name patchUserId
+PATCH {{baseUrl}}/api/debts/{{createDebt.response.body.$.data.id}} HTTP/1.1
+Content-Type: application/json
+Cookie: {{$dotenv COOKIE_A}}
+
+{
+  "user_id": "00000000-0000-0000-0000-000000000000"
+}
+
+### 4h. PATCH berisi settled_at dari client — ditolak .strict
+# Harapan: 400 (alasan sama dengan 4g). Client tidak boleh set timestamp.
+# @name patchSettledAt
+PATCH {{baseUrl}}/api/debts/{{createDebt.response.body.$.data.id}} HTTP/1.1
+Content-Type: application/json
+Cookie: {{$dotenv COOKIE_A}}
+
+{
+  "settled_at": "2026-01-01T00:00:00Z"
+}
+
+### 4i. PATCH id uuid valid tapi acak
+# Harapan: 404 + "Catatan utang-nya nggak ketemu nih." (bukan 403/500)
+# @name patchRandomId
+PATCH {{baseUrl}}/api/debts/22222222-2222-2222-2222-222222222222 HTTP/1.1
+Content-Type: application/json
+Cookie: {{$dotenv COOKIE_A}}
+
+{
+  "is_settled": true
+}
+
+### 4j. PATCH id bukan uuid
+# Harapan: 404 yang sama (validasi id gagal -> 404, bukan 500 Postgres 22P02)
+# @name patchBadId
+PATCH {{baseUrl}}/api/debts/bukan-uuid HTTP/1.1
+Content-Type: application/json
+Cookie: {{$dotenv COOKIE_A}}
+
+{
+  "is_settled": true
+}
+
+### 4k. PATCH body bukan JSON
+# Harapan: 400 + "Body-nya bukan JSON yang valid nih."
+# @name patchBrokenJson
+PATCH {{baseUrl}}/api/debts/{{createDebt.response.body.$.data.id}} HTTP/1.1
+Content-Type: application/json
+Cookie: {{$dotenv COOKIE_A}}
+
+{bukan json
+
+### 5a. DELETE id dari 3a (cookie A)
+# Harapan: 200 + {"success":true,"message":"Catatan utang berhasil dihapus."}
+# @name deleteDebt
+DELETE {{baseUrl}}/api/debts/{{createDebt.response.body.$.data.id}} HTTP/1.1
+Cookie: {{$dotenv COOKIE_A}}
+
+### 5b. DELETE lagi id yang sama
+# Harapan: 404 + "Catatan utang-nya nggak ketemu nih."
+# @name deleteDebtAgain
+DELETE {{baseUrl}}/api/debts/{{createDebt.response.body.$.data.id}} HTTP/1.1
+Cookie: {{$dotenv COOKIE_A}}
+
+### 5c. DELETE id uuid acak
+# Harapan: 404 yang sama
+# @name deleteRandomId
+DELETE {{baseUrl}}/api/debts/33333333-3333-3333-3333-333333333333 HTTP/1.1
+Cookie: {{$dotenv COOKIE_A}}
+
+### 5d. DELETE id bukan uuid
+# Harapan: 404 yang sama
+# @name deleteBadId
+DELETE {{baseUrl}}/api/debts/bukan-uuid HTTP/1.1
+Cookie: {{$dotenv COOKIE_A}}
+
+### 6a. Buat entry uji lintas user (cookie A, nama jelas)
+# Harapan: 201. Id-nya dipakai 6c-6e.
+# @name crossEntry
+POST {{baseUrl}}/api/debts HTTP/1.1
+Content-Type: application/json
+Cookie: {{$dotenv COOKIE_A}}
+
+{
+  "type": "owed_to_me",
+  "counterpart_name": "TES-LINTAS-USER",
+  "amount": 777000
+}
+
+### 6b. GET dengan cookie B — entry A tidak boleh terlihat
+# Harapan: 200, TIDAK ADA data.counterpart_name "TES-LINTAS-USER"
+# @name getWithB
+GET {{baseUrl}}/api/debts?search=TES-LINTAS-USER HTTP/1.1
+Cookie: {{$dotenv COOKIE_B}}
+
+### 6c. PATCH id milik A dengan cookie B
+# Harapan: 404 + "Catatan utang-nya nggak ketemu nih." (bukan 403)
+# @name patchWithB
+PATCH {{baseUrl}}/api/debts/{{crossEntry.response.body.$.data.id}} HTTP/1.1
+Content-Type: application/json
+Cookie: {{$dotenv COOKIE_B}}
+
+{
+  "is_settled": true
+}
+
+### 6d. DELETE id milik A dengan cookie B
+# Harapan: 404 yang sama, entry TIDAK terhapus
+# @name deleteWithB
+DELETE {{baseUrl}}/api/debts/{{crossEntry.response.body.$.data.id}} HTTP/1.1
+Cookie: {{$dotenv COOKIE_B}}
+
+### 6e. Baca ulang dengan cookie A — entry harus UTUH (belum lunas)
+# Harapan: 200, entry ada, settled_at null, amount tetap 777000
+# @name getCrossWithA
+GET {{baseUrl}}/api/debts?search=TES-LINTAS-USER HTTP/1.1
+Cookie: {{$dotenv COOKIE_A}}
+
+### 6f. Bersihkan: hapus entry uji dengan cookie A
+# Harapan: 200 + pesan hapus BI
+# @name cleanupCross
+DELETE {{baseUrl}}/api/debts/{{crossEntry.response.body.$.data.id}} HTTP/1.1
+Cookie: {{$dotenv COOKIE_A}}
+
+### 7a. [Supabase langsung] login user B, simpan access_token
+# Harapan: 200 + {access_token,...}. Token dipakai 7b.
+# @name loginB
+POST {{$dotenv SUPABASE_URL}}/auth/v1/token?grant_type=password HTTP/1.1
+apikey: {{$dotenv SUPABASE_PUBLISHABLE_KEY}}
+Content-Type: application/json
+
+{
+  "email": "{{$dotenv TEST_EMAIL_B}}",
+  "password": "{{$dotenv TEST_PASSWORD_B}}"
+}
+
+### 7b. [Supabase langsung] REST dengan token B — tidak ada row milik A
+# Harapan: 200, TIDAK ADA counterpart_name "TES-LINTAS-USER" (atau [] jika
+# B belum punya data). Ini bukti RLS di level database, bukan hanya API.
+# @name restWithB
+GET {{$dotenv SUPABASE_URL}}/rest/v1/debts?select=id,counterpart_name,amount HTTP/1.1
+apikey: {{$dotenv SUPABASE_PUBLISHABLE_KEY}}
+Authorization: Bearer {{loginB.response.body.$.access_token}}
+
+### 7c. [Supabase langsung] apikey saja tanpa Authorization
+# Harapan: DITOLAK atau [] — catat status asli yang muncul. Yang penting:
+# tanpa JWT tidak ada data yang keluar (REVOKE anon + RLS).
+# @name restAnon
+GET {{$dotenv SUPABASE_URL}}/rest/v1/debts?select=id,counterpart_name HTTP/1.1
+apikey: {{$dotenv SUPABASE_PUBLISHABLE_KEY}}

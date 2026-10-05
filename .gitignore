@@ -33,6 +33,9 @@ yarn-error.log*
 # env files (can opt-in for committing if needed)
 .env*
 !.env.example
+# REST Client: requests/.env (rahasia) di-ignore; templatenya di-commit
+requests/.env
+!requests/.env.rest.example
 
 # vercel
 .vercel
