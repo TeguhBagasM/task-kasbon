@@ -16,20 +16,20 @@ export function Dashboard({ email }: { email: string | null }) {
 
   return (
     <div className="mx-auto flex min-h-dvh w-full max-w-3xl flex-col gap-6 px-5 py-6">
-      <header className="flex items-start justify-between gap-4">
+      <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex min-w-0 flex-col gap-0.5">
           <p className="font-angka text-xl font-bold tracking-tight">Kasbon</p>
           {email && (
             <p className="truncate text-sm text-tinta/60">{email}</p>
           )}
         </div>
-        <div className="flex shrink-0 items-center gap-2">
+        <div className="flex items-center gap-2">
           {/* TODO(T10): aktifkan saat modal tambah/edit selesai. */}
           <button
             type="button"
             disabled
             title="Segera hadir"
-            className="flex h-11 items-center gap-1.5 rounded-lg bg-pulpen px-4 font-semibold text-white disabled:opacity-40"
+            className="flex h-11 flex-1 items-center justify-center gap-1.5 rounded-lg bg-pulpen px-4 font-semibold text-white disabled:opacity-40 sm:flex-none"
           >
             <Plus aria-hidden="true" className="h-5 w-5" />
             Tambah Catatan
