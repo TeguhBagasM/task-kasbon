@@ -23,10 +23,24 @@ export function mapAuthErrorMessage(error: AuthError | Error): string {
   }
   if (
     raw.includes("failed to fetch") ||
+    raw.includes("fetch failed") ||
+    raw.includes("load failed") ||
     raw.includes("network") ||
-    raw.includes("fetch failed")
+    raw.includes("connection") ||
+    raw.includes("offline")
   ) {
     return "Jaringan bermasalah nih, cek koneksi lalu coba lagi.";
+  }
+  if (raw.includes("invalid api key") || raw.includes("invalid apikey")) {
+    return "Konfigurasi aplikasinya bermasalah nih, coba lagi nanti ya.";
+  }
+  if (
+    raw.includes("rate limit") ||
+    raw.includes("too many requests") ||
+    raw.includes("over_email_send_rate_limit") ||
+    raw.includes("over_sms_send_rate_limit")
+  ) {
+    return "Kebanyakan percobaan nih, tunggu sebentar lalu coba lagi ya.";
   }
   return "Ada yang salah nih, coba lagi ya.";
 }

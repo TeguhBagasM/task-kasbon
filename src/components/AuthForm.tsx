@@ -2,9 +2,19 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import type { AuthError } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
 import { authSchema } from "@/lib/validation/auth";
 import { mapAuthErrorMessage } from "@/lib/supabase/auth-errors";
+
+type AuthMode = "login" | "signup";
+
+// Pesan mentah hanya ke console saat development — tidak pernah ke UI.
+function logAuthErrorDev(error: AuthError | Error) {
+  if (process.env.NODE_ENV !== "production") {
+    console.error("[auth]", error);
+  }
+}
 
 type AuthMode = "login" | "signup";
 
@@ -38,6 +48,7 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
           password: parsed.data.password,
         });
         if (signUpError) {
+          logAuthErrorDev(signUpError);
           setError(mapAuthErrorMessage(signUpError));
           return;
         }
@@ -54,6 +65,7 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
           password: parsed.data.password,
         });
         if (signInError) {
+          logAuthErrorDev(signInError);
           setError(mapAuthErrorMessage(signInError));
           return;
         }
@@ -61,11 +73,12 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
       router.push("/");
       router.refresh();
     } catch (err) {
-      setError(
-        err instanceof Error
-          ? mapAuthErrorMessage(err)
-          : "Ada yang salah nih, coba lagi ya.",
-      );
+      if (err instanceof Error) {
+        logAuthErrorDev(err);
+        setError(mapAuthErrorMessage(err));
+      } else {
+        setError("Ada yang salah nih, coba lagi ya.");
+      }
     } finally {
       setLoading(false);
     }
