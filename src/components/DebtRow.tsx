@@ -93,7 +93,7 @@ export function DebtRow({
             <StatusBadge settled={settled} />
           </div>
         </div>
-        <p className="font-angka shrink-0 text-lg font-semibold">
+        <p className="font-angka min-w-0 break-words text-right text-lg font-semibold">
           {formatIDR(debt.amount)}
         </p>
       </div>

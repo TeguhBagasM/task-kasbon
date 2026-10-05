@@ -32,8 +32,10 @@ export function useDebts(filters: DebtFilters) {
   const [summary, setSummary] = useState<DebtSummary>(EMPTY_SUMMARY);
   const [status, setStatus] = useState<DebtsStatus>("loading");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
   const [reloadToken, setReloadToken] = useState(0);
   const requestId = useRef(0);
+  const hasLoaded = useRef(false);
 
   // Debounce search 300ms DI DALAM hook (bukan komponen): komponen cukup
   // set filter apa adanya; hook yang mengatur ritme request di satu tempat.
@@ -53,7 +55,10 @@ export function useDebts(filters: DebtFilters) {
     const id = ++requestId.current;
 
     async function load() {
-      setStatus("loading");
+      // Load awal -> skeleton penuh. Refetch (filter/mutasi) -> data lama
+      // dipertahankan + indikator ringan via `refreshing`.
+      if (hasLoaded.current) setRefreshing(true);
+      else setStatus("loading");
       try {
         const params = new URLSearchParams({
           status: filters.status,
@@ -74,12 +79,15 @@ export function useDebts(filters: DebtFilters) {
         if (!json.success) {
           setStatus("error");
           setErrorMessage(json.error);
+          setRefreshing(false);
           return;
         }
         setData(json.data);
         setSummary(json.summary);
         setStatus("ready");
         setErrorMessage(null);
+        setRefreshing(false);
+        hasLoaded.current = true;
       } catch (error) {
         if (error instanceof DOMException && error.name === "AbortError") {
           return;
@@ -87,6 +95,7 @@ export function useDebts(filters: DebtFilters) {
         if (id !== requestId.current) return;
         setStatus("error");
         setErrorMessage(LOAD_ERROR);
+        setRefreshing(false);
       }
     }
 
@@ -185,6 +194,7 @@ export function useDebts(filters: DebtFilters) {
     summary,
     status,
     errorMessage,
+    refreshing,
     refresh,
     createDebt,
     updateDebt,

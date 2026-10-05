@@ -53,6 +53,7 @@ export function Dashboard({ email }: { email: string | null }) {
     summary,
     status,
     errorMessage,
+    refreshing,
     refresh,
     createDebt,
     updateDebt,
@@ -132,7 +133,11 @@ export function Dashboard({ email }: { email: string | null }) {
         </div>
       </header>
 
-      <SummaryCards summary={summary} loading={status === "loading"} />
+      <SummaryCards
+        summary={summary}
+        loading={status === "loading" && !refreshing}
+        refreshing={refreshing}
+      />
 
       <DebtFilters filters={filters} onChange={setFilters} />
 
@@ -140,12 +145,21 @@ export function Dashboard({ email }: { email: string | null }) {
         debts={data}
         status={status}
         errorMessage={errorMessage}
+        refreshing={refreshing}
         searchActive={
           filters.search.trim() !== "" ||
           filters.status !== "all" ||
           filters.type !== "all"
         }
         onRetry={refresh}
+        onAdd={() => {
+          setEditingDebt(null);
+          setModalKey((key) => key + 1);
+          setModalOpen(true);
+        }}
+        onResetFilters={() =>
+          setFilters({ status: "all", type: "all", search: "" })
+        }
         onSettle={(id, settled) => settleDebt(id, settled)}
         onEdit={(debt) => {
           setEditingDebt(debt);

@@ -1,5 +1,6 @@
 import { TrendingDown, TrendingUp } from "lucide-react";
 import { formatIDR } from "@/lib/utils/currency";
+import { RefreshingNote, SummarySkeleton } from "@/components/states/Skeletons";
 import type { DebtSummary } from "@/types/debt";
 
 function CardShell({
@@ -28,42 +29,33 @@ function CardShell({
 export function SummaryCards({
   summary,
   loading,
+  refreshing,
 }: {
   summary: DebtSummary;
   loading: boolean;
+  refreshing: boolean;
 }) {
   if (loading) {
-    return (
-      <div
-        aria-busy="true"
-        aria-label="Memuat ringkasan"
-        className="grid grid-cols-1 gap-3 sm:grid-cols-3"
-      >
-        {[0, 1, 2].map((key) => (
-          <div
-            key={key}
-            className="h-24 animate-pulse rounded-b-xl rounded-t-sm bg-white"
-          />
-        ))}
-      </div>
-    );
+    return <SummarySkeleton />;
   }
 
   const netPositive = summary.net >= 0;
   const NetIcon = netPositive ? TrendingUp : TrendingDown;
 
   return (
-    <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+    <div className="flex flex-col gap-2">
+      {refreshing && <RefreshingNote />}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
       <CardShell accent="daun">
         <h2 className="text-sm text-tinta/70">Total dihutang ke saya</h2>
-        <p className="font-angka text-2xl font-semibold text-daun">
+        <p className="font-angka min-w-0 break-words text-2xl font-semibold text-daun">
           {formatIDR(summary.owed_to_me)}
         </p>
       </CardShell>
 
       <CardShell accent="bata">
         <h2 className="text-sm text-tinta/70">Total saya hutang</h2>
-        <p className="font-angka text-2xl font-semibold text-bata">
+        <p className="font-angka min-w-0 break-words text-2xl font-semibold text-bata">
           {formatIDR(summary.i_owe)}
         </p>
       </CardShell>
@@ -81,12 +73,13 @@ export function SummaryCards({
           }`}
         >
           <NetIcon aria-hidden="true" className="h-6 w-6 shrink-0" />
-          <span>
+          <span className="min-w-0 break-words">
             {netPositive ? "+" : "-"}
             {formatIDR(Math.abs(summary.net))}
           </span>
         </p>
       </CardShell>
+      </div>
     </div>
   );
 }

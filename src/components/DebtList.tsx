@@ -2,21 +2,13 @@
 
 import { useState } from "react";
 import { DebtRow } from "@/components/DebtRow";
+import { EmptyDebts, LoadError } from "@/components/states/Feedback";
+import {
+  ListSkeleton,
+  RefreshingNote,
+} from "@/components/states/Skeletons";
 import type { Debt } from "@/types/debt";
 import type { DebtsStatus, MutationResult } from "@/hooks/useDebts";
-
-function SkeletonRows() {
-  return (
-    <div aria-busy="true" aria-label="Memuat catatan" className="flex flex-col">
-      {[0, 1, 2].map((key) => (
-        <div key={key} className="border-b border-tinta/10 py-4 last:border-b-0">
-          <div className="h-5 w-2/5 animate-pulse rounded bg-tinta/10" />
-          <div className="mt-2 h-4 w-3/5 animate-pulse rounded bg-tinta/10" />
-        </div>
-      ))}
-    </div>
-  );
-}
 
 // Daftar ledger + orkestrasi aksi per baris: satu baris sibuk dalam satu
 // waktu (cegah double click), error mutasi tampil di banner, hapus selalu
@@ -25,8 +17,11 @@ export function DebtList({
   debts,
   status,
   errorMessage,
+  refreshing,
   searchActive,
   onRetry,
+  onAdd,
+  onResetFilters,
   onSettle,
   onEdit,
   onDelete,
@@ -34,8 +29,11 @@ export function DebtList({
   debts: Debt[];
   status: DebtsStatus;
   errorMessage: string | null;
+  refreshing: boolean;
   searchActive: boolean;
   onRetry: () => void;
+  onAdd: () => void;
+  onResetFilters: () => void;
   onSettle: (id: string, settled: boolean) => Promise<MutationResult>;
   onEdit: (debt: Debt) => void;
   onDelete: (id: string) => Promise<MutationResult>;
@@ -56,28 +54,30 @@ export function DebtList({
     }
   }
 
-  if (status === "loading") return <SkeletonRows />;
+  // Load awal (belum ada data): skeleton penuh. Refetch: data lama + note.
+  if (status === "loading" && !refreshing) return <ListSkeleton />;
 
-  if (status === "error") {
-    return (
-      <div className="flex flex-col items-start gap-3 rounded-xl border border-tinta/10 bg-white px-5 py-8">
-        <p className="font-semibold">Gagal memuat catatan nih.</p>
-        {errorMessage && (
-          <p className="text-sm text-tinta/70">{errorMessage}</p>
-        )}
-        <button
-          type="button"
-          onClick={onRetry}
-          className="h-11 rounded-lg bg-pulpen px-5 text-sm font-semibold text-white"
-        >
-          Coba lagi
-        </button>
-      </div>
-    );
+  if (status === "error" && debts.length === 0) {
+    return <LoadError message={errorMessage} onRetry={onRetry} />;
   }
 
   return (
     <div className="flex flex-col">
+      {refreshing && <RefreshingNote />}
+      {status === "error" && debts.length > 0 && (
+        <div className="mb-2 flex flex-wrap items-center gap-2 rounded-lg bg-bata/10 px-4 py-3">
+          <p role="alert" className="flex-1 text-sm text-bata">
+            {errorMessage ?? "Gagal memuat ulang nih."}
+          </p>
+          <button
+            type="button"
+            onClick={onRetry}
+            className="h-11 rounded-lg bg-bata px-4 text-sm font-semibold text-white"
+          >
+            Coba lagi
+          </button>
+        </div>
+      )}
       {mutationError && (
         <p
           role="alert"
@@ -88,23 +88,11 @@ export function DebtList({
       )}
 
       {debts.length === 0 ? (
-        <div className="flex flex-col items-start gap-2 rounded-xl border border-tinta/10 bg-white px-5 py-8">
-          {searchActive ? (
-            <>
-              <p className="font-semibold">Nggak ketemu nih.</p>
-              <p className="text-sm text-tinta/70">
-                Coba kata kunci lain atau ubah filternya.
-              </p>
-            </>
-          ) : (
-            <>
-              <p className="font-semibold">Belum ada catatan utang nih.</p>
-              <p className="text-sm text-tinta/70">
-                Catat yang pertama lewat tombol Tambah Catatan.
-              </p>
-            </>
-          )}
-        </div>
+        <EmptyDebts
+          variant={searchActive ? "noresult" : "empty"}
+          onAdd={onAdd}
+          onResetFilters={onResetFilters}
+        />
       ) : (
         debts.map((debt) => (
           <DebtRow
