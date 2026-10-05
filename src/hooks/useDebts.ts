@@ -176,11 +176,16 @@ export function useDebts(filters: DebtFilters) {
     [mutate],
   );
 
+  const refresh = useCallback(() => {
+    setReloadToken((token) => token + 1);
+  }, []);
+
   return {
     data,
     summary,
     status,
     errorMessage,
+    refresh,
     createDebt,
     updateDebt,
     settleDebt,
