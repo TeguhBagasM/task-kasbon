@@ -43,7 +43,7 @@ BEGIN
     NEW.updated_at = NOW();
     RETURN NEW;
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 DROP TRIGGER IF EXISTS update_debts_updated_at ON public.debts;
 CREATE TRIGGER update_debts_updated_at
