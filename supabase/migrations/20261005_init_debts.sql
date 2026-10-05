@@ -31,8 +31,14 @@ CREATE INDEX IF NOT EXISTS idx_debts_status ON public.debts(user_id, settled_at)
 CREATE INDEX IF NOT EXISTS idx_debts_type ON public.debts(user_id, type);
 
 -- 4. Trigger auto-update updated_at
+-- SET search_path = '' mengunci function terhadap search_path hijacking:
+-- pemanggil tidak bisa menyuntikkan tabel/function palsu via schema
+-- yang lebih dulu di search_path. NOW() tetap bisa dipakai (built-in).
 CREATE OR REPLACE FUNCTION update_updated_at_column()
-RETURNS TRIGGER AS $$
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SET search_path = ''
+AS $$
 BEGIN
     NEW.updated_at = NOW();
     RETURN NEW;
