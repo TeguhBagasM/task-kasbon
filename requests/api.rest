@@ -1,21 +1,21 @@
-# Kasbon API — REST Client (ekstensi Huachao Mao)
-#
-# CARA PAKAI:
-# 1. Copy requests/.env.rest.example menjadi requests/.env, isi nilainya.
-# 2. Jalankan `npm run dev`, pastikan BASE_URL di requests/.env cocok.
-# 3. Kirim request berurutan dari atas (ada yang merantai via request variable).
-#
-# COOKIE (auth app ini berbasis cookie Supabase SSR, BUKAN Bearer):
-# - Browser yang sedang login -> DevTools -> Application -> Cookies ->
-#   copy SEMUA cookie bernama sb-*-auth-token, gabung dengan "; ", paste ke
-#   COOKIE_A / COOKIE_B di requests/.env.
-# - Cookie kedaluwarsa kira-kira per jam. Jika tiba-tiba semua 401,
-#   login ulang di browser lalu copy cookie yang baru.
-#
-# REQUEST VARIABLE: {{nama.response.body.$.path}} hanya terisi SETELAH
-# request bernama itu dikirim. Jangan lompat urutan di bagian berantai.
-
 @baseUrl = {{$dotenv BASE_URL}}
+
+### 0. [Supabase langsung] login untuk dapat access_token — HANYA untuk section 7
+# Kenapa tidak untuk /api/*: requireUser() di src/lib/api/auth.ts membaca
+# session dari COOKIE via next/headers; header Authorization: Bearer
+# DIABAIKAN total oleh app ini (sengaja, tanpa dukungan Bearer).
+# Jadi token dari sini hanya berguna untuk request "Supabase langsung".
+# Harapan: 200 + {access_token,...}. Kredensial dari requests/.env,
+# JANGAN tulis email/password asli di file ini.
+# @name loginA
+POST {{$dotenv SUPABASE_URL}}/auth/v1/token?grant_type=password HTTP/1.1
+apikey: {{$dotenv SUPABASE_PUBLISHABLE_KEY}}
+Content-Type: application/json
+
+{
+  "email": "{{$dotenv TEST_EMAIL_A}}",
+  "password": "{{$dotenv TEST_PASSWORD_A}}"
+}
 
 ### 1a. Tanpa cookie: GET harus 401
 # Harapan: 401 + {"success":false,"error":"Sesi kamu sudah berakhir. Silakan login kembali ya."}
