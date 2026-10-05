@@ -21,6 +21,9 @@ export function mapAuthErrorMessage(error: AuthError | Error): string {
   if (raw.includes("email not confirmed")) {
     return "Email-nya belum dikonfirmasi, cek inbox kamu ya.";
   }
+  if (raw.includes("email") && raw.includes("invalid")) {
+    return "Email-nya ditolak server nih, coba pakai email lain ya.";
+  }
   if (
     raw.includes("failed to fetch") ||
     raw.includes("fetch failed") ||
