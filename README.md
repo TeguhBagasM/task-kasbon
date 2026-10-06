@@ -1,36 +1,71 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Kasbon — Web App Tracker Utang Piutang
 
-## Getting Started
+Catat siapa berhutang ke siapa, berapa nominalnya, dan kapan jatuh tempo —
+santai, mobile-first, dan data tiap pengguna terisolasi penuh.
 
-First, run the development server:
+## Setup
+
+**Prasyarat:** Node.js 18+ (disarankan 20+), npm atau pnpm.
+
+**1. Clone dan install:**
+
+```bash
+git clone https://github.com/TeguhBagasM/task-kasbon.git
+cd task-kasbon
+npm install
+```
+
+**2. Isi `.env.local`** (copy dari `.env.example`):
+
+```bash
+NEXT_PUBLIC_SUPABASE_URL=https://<project-ref>.supabase.co
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_...
+```
+
+Ambil nilainya dari dashboard Supabase → Project Settings → API.
+Jangan pernah commit `.env.local`.
+
+**3. Jalankan database migration:**
+
+Buka file `supabase/migrations/20261005_init_debts.sql`, copy seluruh
+isinya, paste di Supabase dashboard → SQL Editor → Run. Ini membuat tabel
+`debts` beserta trigger `updated_at` dan kebijakan keamanan RLS.
+
+**4. Jalankan aplikasi:**
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Buka [http://localhost:3000](http://localhost:3000), daftar akun baru,
+dan mulai mencatat.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Demo
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- **Live Demo:** https://kasbon-teguh.vercel.app/
+- **Repository:** https://github.com/TeguhBagasM/task-kasbon.git
+- **Video Loom:** [Isi Link Loom Di Sini]
 
-## Learn More
+## Approach
 
-To learn more about Next.js, take a look at the following resources:
+Keputusan teknis yang paling dibanggakan adalah isolasi data berlapis:
+Row Level Security (RLS) di Supabase menegakkan `auth.uid() = user_id` di
+empat policy (SELECT, INSERT, UPDATE, DELETE) sehingga data antar pengguna
+tidak bisa bocor lewat REST API, diperkuat `REVOKE ALL` untuk role anon
+dan pengecekan kepemilikan di setiap API route; di atasnya berdiri Next.js
+16 App Router dengan TypeScript strict dan Tailwind CSS v4, sehingga
+aplikasinya cepat, aman dari sisi tipe, dan nyaman dipakai di layar HP.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Trade-off
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Jika ada waktu ekstra 1 hari, yang akan dipoles: pengelompokan transaksi
+(grouping beberapa catatan utang per nama orang agar riwayat per relasi
+terbaca sekali lihat), grafik perbandingan utang vs piutang (bar chart di
+atas ringkasan angka), serta pencarian instan yang lebih responsif dengan
+penyorotan kata kunci di hasil.
 
-## Deploy on Vercel
+## Time Spent
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Sekitar 6 - 8 jam pengerjaan end-to-end, dari perancangan database dan
+RLS, setup Next.js + Auth, pembuatan API route, hingga deployment di
+Vercel.
